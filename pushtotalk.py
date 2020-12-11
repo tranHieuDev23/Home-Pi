@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import os.path
+from request_handler import get_request_handler
 import pathlib2 as pathlib
 import sys
 import time
@@ -58,8 +59,8 @@ PLAYING = embedded_assistant_pb2.ScreenOutConfig.PLAYING
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 
 
-class SampleAssistant(object):
-    """Sample Assistant that supports conversations and device actions.
+class Assistant(object):
+    """Assistant class that supports conversations and device actions.
 
     Args:
       device_model_id: identifier of the device model.
@@ -416,31 +417,12 @@ def main(api_endpoint, credentials, project_id,
             with open(device_config, 'w') as f:
                 json.dump(payload, f)
 
-    device_handler = device_helpers.DeviceRequestHandler(device_id)
+    device_handler = get_request_handler(device_id)
 
-    @device_handler.command('action.devices.commands.OnOff')
-    def onoff(on):
-        if on:
-            logging.info('Turning device on')
-        else:
-            logging.info('Turning device off')
-
-    @device_handler.command('com.example.commands.BlinkLight')
-    def blink(speed, number):
-        logging.info('Blinking device %s times.' % number)
-        delay = 1
-        if speed == "SLOWLY":
-            delay = 2
-        elif speed == "QUICKLY":
-            delay = 0.5
-        for i in range(int(number)):
-            logging.info('Device is blinking.')
-            time.sleep(delay)
-
-    with SampleAssistant(lang, device_model_id, device_id,
-                         conversation_stream, display,
-                         grpc_channel, grpc_deadline,
-                         device_handler) as assistant:
+    with Assistant(lang, device_model_id, device_id,
+                   conversation_stream, display,
+                   grpc_channel, grpc_deadline,
+                   device_handler) as assistant:
         # If file arguments are supplied:
         # exit after the first turn of the conversation.
         if input_audio_file or output_audio_file:
