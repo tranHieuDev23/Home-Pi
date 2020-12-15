@@ -1,0 +1,142 @@
+{
+    "manifest": {
+        "displayName": "Home Pi",
+        "invocationName": "Home Pi",
+        "category": "HOME_CONTROL"
+    },
+    "actions": [
+        {
+            "name": "com.homepi.homeControl.light.actions.On",
+            "availability": {
+                "deviceClasses": [
+                    {
+                        "assistantSdkDevice": {}
+                    }
+                ]
+            },
+            "intent": {
+                "name": "com.homepi.homeControl.light.intents.On",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "type": "SchemaOrg_Text"
+                    }
+                ],
+                "trigger": {
+                    "queryPatterns": [
+                        "Turn on (the)? light in (the)? $SchemaOrg_Text:room",
+                        "Turn on (the)? lights in (the)? $SchemaOrg_Text:room"
+                    ]
+                }
+            },
+            "fulfillment": {
+                "staticFulfillment": {
+                    "templatedResponse": {
+                        "items": [
+                            {
+                                "simpleResponse": {
+                                    "textToSpeech": "Turning on the light in the $room"
+                                }
+                            },
+                            {
+                                "deviceExecution": {
+                                    "command": "com.homepi.homeControl.light.commands.On",
+                                    "params": {
+                                        "room": "$room"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "name": "com.homepi.homeControl.light.actions.Off",
+            "availability": {
+                "deviceClasses": [
+                    {
+                        "assistantSdkDevice": {}
+                    }
+                ]
+            },
+            "intent": {
+                "name": "com.homepi.homeControl.light.intents.Off",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "type": "SchemaOrg_Text"
+                    }
+                ],
+                "trigger": {
+                    "queryPatterns": [
+                        "Turn off (the)? light in the $SchemaOrg_Text:room",
+                        "Turn off (the)? lights in the $SchemaOrg_Text:room"
+                    ]
+                }
+            },
+            "fulfillment": {
+                "staticFulfillment": {
+                    "templatedResponse": {
+                        "items": [
+                            {
+                                "simpleResponse": {
+                                    "textToSpeech": "Turning off the light in the $room"
+                                }
+                            },
+                            {
+                                "deviceExecution": {
+                                    "command": "com.homepi.homeControl.light.commands.Off",
+                                    "params": {
+                                        "room": "$room"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "name": "com.homepi.homeControl.media.actions.Play",
+            "availability": {
+                "deviceClasses": [
+                    {
+                        "assistantSdkDevice": {}
+                    }
+                ]
+            },
+            "intent": {
+                "name": "com.homepi.homeControl.media.intents.Play",
+                "parameters": [
+                    {
+                        "name": "title",
+                        "type": "SchemaOrg_Text"
+                    }
+                ],
+                "trigger": {
+                    "queryPatterns": [
+                        "Play $SchemaOrg_Text:title"
+                    ]
+                }
+            },
+            "fulfillment": {
+                "staticFulfillment": {
+                    "templatedResponse": {
+                        "items": [
+                            {
+                                "deviceExecution": {
+                                    "command": "com.homepi.homeControl.media.commands.Play",
+                                    "params": {
+                                        "room": "$title"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ],
+    "types": []
+}
