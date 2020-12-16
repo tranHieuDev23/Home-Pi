@@ -73,14 +73,13 @@ class Assistant(object):
       device_handler: callback for device actions.
     """
 
-    def __init__(self, language_code, device_model_id, device_id,
-                 conversation_stream, display,
-                 channel, deadline_sec, device_handler):
+    def __init__(self, language_code, device_model_id, device_id, conversation_stream, display, channel, deadline_sec, device_handler, media_player):
         self.language_code = language_code
         self.device_model_id = device_model_id
         self.device_id = device_id
         self.conversation_stream = conversation_stream
         self.display = display
+        self.media_player = media_player
 
         # Opaque blob provided in AssistResponse that,
         # when provided in a follow-up AssistRequest,
@@ -125,6 +124,7 @@ class Assistant(object):
         continue_conversation = False
         device_actions_futures = []
 
+        self.media_player.mute(True)
         self.conversation_stream.start_recording()
         logging.info('Recording audio request.')
 
@@ -143,6 +143,7 @@ class Assistant(object):
                 logging.info('End of audio request detected.')
                 logging.info('Stopping recording.')
                 self.conversation_stream.stop_recording()
+                self.media_player.mute(False)
             if resp.speech_results:
                 logging.info('Transcript of user request: "%s".',
                              ' '.join(r.transcript
@@ -417,12 +418,12 @@ def main(api_endpoint, credentials, project_id,
             with open(device_config, 'w') as f:
                 json.dump(payload, f)
 
-    device_handler = get_request_handler(device_id)
+    device_handler, media_player = get_request_handler(device_id)
 
     with Assistant(lang, device_model_id, device_id,
                    conversation_stream, display,
                    grpc_channel, grpc_deadline,
-                   device_handler) as assistant:
+                   device_handler, media_player) as assistant:
         # If file arguments are supplied:
         # exit after the first turn of the conversation.
         if input_audio_file or output_audio_file:

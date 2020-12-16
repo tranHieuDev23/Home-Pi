@@ -128,7 +128,7 @@
                                 "deviceExecution": {
                                     "command": "com.homepi.homeControl.media.commands.Play",
                                     "params": {
-                                        "room": "$title"
+                                        "title": "$title"
                                     }
                                 }
                             }
