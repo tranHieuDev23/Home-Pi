@@ -13,3 +13,6 @@ python-vlc
 pafy
 python-dotenv
 youtube-dl
+paho-mqtt
+google-cloud-texttospeech
+pydub
