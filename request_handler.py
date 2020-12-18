@@ -1,6 +1,6 @@
 import device_helpers
-from util.mediaplayer import VlcPlayer
-from util.youtube_search_engine import youtube_search, youtube_stream_link
+from media.mediaplayer import VlcPlayer
+from media.youtube_search_engine import youtube_search, youtube_stream_link
 
 
 def get_request_handler(device_id):
