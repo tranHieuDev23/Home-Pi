@@ -1,3 +1,4 @@
+from home_control.device_database import DeviceDatabase
 from os import path, mkdir
 from whoosh.index import create_in, open_dir
 from whoosh.fields import *
@@ -9,22 +10,27 @@ DEVICE_INDEX_DIR = 'device_index'
 
 class DeviceManager:
     def __init__(self):
-        self.devices = []
-        schema = Schema(
-            id=TEXT(stored=True),
-            name=TEXT(stored=True),
-            type=TEXT(stored=True),
-            location_name=TEXT(stored=True),
-            location_type=TEXT(stored=True)
-        )
+        self.__database = DeviceDatabase()
+        self.__database.initialize()
+        self.devices = self.__database.get_all_devices()
+
         if (not path.isdir(DEVICE_INDEX_DIR)):
             mkdir(DEVICE_INDEX_DIR)
+            schema = Schema(
+                id=TEXT(stored=True),
+                name=TEXT(stored=True),
+                type=TEXT(stored=True),
+                location_name=TEXT(stored=True),
+                location_type=TEXT(stored=True)
+            )
             self.index = create_in(DEVICE_INDEX_DIR, schema)
         else:
-            self.index = open_dir(DEVICE_INDEX_DIR, schema)
+            self.index = open_dir(DEVICE_INDEX_DIR)
+
         self.device_processes = []
 
     def add_device(self, device):
+        self.__database.add_device(device)
         self.devices.append(device)
         writer = self.index.writer()
         writer.add_document(
@@ -41,6 +47,7 @@ class DeviceManager:
         self.device_processes.append(new_process)
 
     def remove_device(self, device):
+        self.__database.delete_device(device)
         device_id = self.__get_device_id(device)
         if (device_id == None):
             return
@@ -48,7 +55,7 @@ class DeviceManager:
         self.devices = self.devices[:device_id] + self.devices[device_id + 1:]
 
         writer = self.index.writer()
-        writer.delete_by_term("id", device.get_id())
+        writer.delete_by_term('id', device.get_id())
         writer.commit()
 
         self.device_processes = self.device_processes[:device_id] + \
@@ -56,22 +63,25 @@ class DeviceManager:
 
     def search_device(self, query):
         parsed_query = self.__parse_query(query)
+        print(parsed_query)
         results = []
         with self.index.searcher() as searcher:
             doc_results = searcher.search(parsed_query)
-            results = [self.__get_device(item["id"]) for item in doc_results]
+            results = [self.__get_device(item['id']) for item in doc_results]
         return results
 
     def __parse_query(self, query):
         terms = []
+        if ('id' in query):
+            terms.append(Term('id', query['id']))
         if ('name' in query):
-            terms.append(Term("name", query["name"]))
+            terms.append(Term('name', query['name']))
         if ('type' in query):
-            terms.append(Term("type", query["type"]))
+            terms.append(Term('type', query['type']))
         if ('location_name' in query):
-            terms.append(Term("location_name", query["location_name"]))
+            terms.append(Term('location_name', query['location_name']))
         if ('location_type' in query):
-            terms.append(Term("location_type", query["location_type"]))
+            terms.append(Term('location_type', query['location_type']))
         parsed_query = And(terms)
         return parsed_query
 

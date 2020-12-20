@@ -7,3 +7,4 @@ creds.data
 .env
 .player.json
 device_index
+device_database.db
