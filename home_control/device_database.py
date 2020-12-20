@@ -1,11 +1,10 @@
 from home_control.location import Location, LocationType
 from home_control.device import DeviceType
 import sqlite3
-from .mqtt_device import MqttDevice
 from .mqtt_light import MqttLight
 
 
-class DeviceFactory:
+class MqttDeviceFactory:
     def __init__(self):
         pass
 
@@ -13,11 +12,6 @@ class DeviceFactory:
         if (type == DeviceType.LIGHT.name):
             return self.create_light(id, name, location)
 
-    def create_light(self, id, name, location):
-        raise NotImplementedError()
-
-
-class MqttDeviceFactory(DeviceFactory):
     def create_light(self, id, name, location):
         return MqttLight(id, name, location)
 
@@ -34,7 +28,9 @@ class DeviceDatabase:
                 name text,
                 type text,
                 location_name text,
-                location_type text
+                location_type text,
+                status_topic text,
+                command_topic text
             );
         ''')
         self.conn.commit()
@@ -50,20 +46,26 @@ class DeviceDatabase:
             type = row[2]
             location_name = row[3]
             location_type = row[4]
+            status_topic = row[5]
+            command_topic = row[6]
             location = Location(location_name, LocationType[location_type])
-            results.append(self.factory.create_device(
-                id, name, type, location))
+            device = self.factory.create_device(id, name, type, location)
+            device.set_status_topic(status_topic)
+            device.set_command_topic(command_topic)
+            results.append(device)
         return results
 
     def add_device(self, device):
         self.conn.execute('''
-            INSERT INTO devices VALUES (?, ?, ?, ?, ?);
+            INSERT INTO devices VALUES (?, ?, ?, ?, ?, ?, ?);
         ''', (
             device.get_id(),
             device.get_name(),
             device.get_type().name,
             device.get_location().name,
             device.get_location().type.name,
+            device.get_status_topic(),
+            device.get_command_topic()
         ))
         self.conn.commit()
 

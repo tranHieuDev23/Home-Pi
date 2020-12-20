@@ -63,7 +63,6 @@ class DeviceManager:
 
     def search_device(self, query):
         parsed_query = self.__parse_query(query)
-        print(parsed_query)
         results = []
         with self.index.searcher() as searcher:
             doc_results = searcher.search(parsed_query)
