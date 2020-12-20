@@ -17,3 +17,5 @@ paho-mqtt
 google-cloud-texttospeech
 pydub
 whoosh
+pvporcupine
+pyaudio
