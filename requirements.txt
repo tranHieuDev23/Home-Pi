@@ -16,3 +16,4 @@ youtube-dl
 paho-mqtt
 google-cloud-texttospeech
 pydub
+whoosh
