@@ -1,12 +1,16 @@
 import argparse
+from audio_helpers import DEFAULT_AUDIO_DEVICE_BLOCK_SIZE, DEFAULT_AUDIO_DEVICE_FLUSH_SIZE, DEFAULT_AUDIO_ITER_SIZE, DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_AUDIO_SAMPLE_WIDTH
 import struct
 from threading import Thread
 import pvporcupine
 import pyaudio
+from pushtotalk import DEFAULT_GRPC_DEADLINE, PushToTalkInstance, ASSISTANT_API_ENDPOINT
+import click
+import os
 
 
 class PorcupineInstance(Thread):
-    def __init__(self, library_path, model_path, keyword_paths, sensitivities, input_device_index=None):
+    def __init__(self, library_path, model_path, keyword_paths, sensitivities, input_device_index=None, push_to_talk=None):
         """
         Constructor.
         :param library_path: Absolute path to Porcupine's dynamic library.
@@ -24,6 +28,7 @@ class PorcupineInstance(Thread):
         self._keyword_paths = keyword_paths
         self._sensitivities = sensitivities
         self._input_device_index = input_device_index
+        self._push_to_talk = push_to_talk
 
     def run(self):
         """
@@ -84,6 +89,31 @@ class PorcupineInstance(Thread):
 
     def on_hotword_detected(self):
         print("Hot word detected!")
+        if (self._push_to_talk is not None):
+            self._push_to_talk.loop()
+
+
+def get_default_push_to_talk():
+    api_endpoint = ASSISTANT_API_ENDPOINT
+    credentials = os.path.join(click.get_app_dir(
+        'google-oauthlib-tool'), 'credentials.json')
+    project_id = os.getenv('PROJECT_ID')
+    device_model_id = os.getenv('DEVICE_MODEL_ID')
+    device_config = os.path.join(click.get_app_dir(
+        'googlesamples-assistant'), 'device_config.json')
+    lang = 'en-US'
+    verbose = False
+    audio_sample_rate = DEFAULT_AUDIO_SAMPLE_RATE
+    audio_sample_width = DEFAULT_AUDIO_SAMPLE_WIDTH
+    audio_iter_size = DEFAULT_AUDIO_ITER_SIZE
+    audio_block_size = DEFAULT_AUDIO_DEVICE_BLOCK_SIZE
+    audio_flush_size = DEFAULT_AUDIO_DEVICE_FLUSH_SIZE
+    grpc_deadline = DEFAULT_GRPC_DEADLINE
+    return PushToTalkInstance(
+        api_endpoint, credentials, project_id, device_model_id, None, device_config, lang,
+        verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size,
+        audio_flush_size, grpc_deadline
+    )
 
 
 def main():
@@ -139,12 +169,15 @@ def main():
             raise ValueError(
                 'Number of keywords does not match the number of sensitivities.')
 
+        push_to_talk = get_default_push_to_talk()
+
         PorcupineInstance(
             library_path=args.library_path,
             model_path=args.model_path,
             keyword_paths=keyword_paths,
             sensitivities=args.sensitivities,
-            input_device_index=args.audio_device_index).run()
+            input_device_index=args.audio_device_index,
+            push_to_talk=push_to_talk).run()
 
 
 if __name__ == '__main__':
