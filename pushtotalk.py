@@ -22,7 +22,6 @@ import os.path
 from request_handler import get_request_handler
 import pathlib2 as pathlib
 import sys
-import time
 import uuid
 
 import click
@@ -41,14 +40,10 @@ try:
     from . import (
         assistant_helpers,
         audio_helpers,
-        browser_helpers,
-        device_helpers
     )
 except (SystemError, ImportError):
     import assistant_helpers
     import audio_helpers
-    import browser_helpers
-    import device_helpers
 
 
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
@@ -73,12 +68,11 @@ class Assistant(object):
       device_handler: callback for device actions.
     """
 
-    def __init__(self, language_code, device_model_id, device_id, conversation_stream, display, channel, deadline_sec, device_handler, media_player):
+    def __init__(self, language_code, device_model_id, device_id, conversation_stream, channel, deadline_sec, device_handler, media_player):
         self.language_code = language_code
         self.device_model_id = device_model_id
         self.device_id = device_id
         self.conversation_stream = conversation_stream
-        self.display = display
         self.media_player = media_player
 
         # Opaque blob provided in AssistResponse that,
@@ -174,9 +168,6 @@ class Assistant(object):
                 fs = self.device_handler(device_request)
                 if fs:
                     device_actions_futures.extend(fs)
-            if self.display and resp.screen_out.data:
-                system_browser = browser_helpers.system_browser
-                system_browser.display(resp.screen_out.data)
 
         if len(device_actions_futures):
             logging.info('Waiting for device executions to complete.')
@@ -209,8 +200,6 @@ class Assistant(object):
                 device_model_id=self.device_model_id,
             )
         )
-        if self.display:
-            config.screen_out_config.screen_mode = PLAYING
         # Continue current conversation with later requests.
         self.is_new_conversation = False
         # The first AssistRequest must contain the AssistConfig
@@ -219,6 +208,124 @@ class Assistant(object):
         for data in self.conversation_stream:
             # Subsequent requests need audio data, but not config.
             yield embedded_assistant_pb2.AssistRequest(audio_in=data)
+
+
+class PushToTalkInstance:
+    def __init__(self, api_endpoint, credentials, project_id, device_model_id, device_id, device_config, lang, verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size, audio_flush_size, grpc_deadline):
+        """Samples for the Google Assistant API.
+
+        Examples:
+        Run the sample with microphone input and speaker output:
+
+            $ python -m googlesamples.assistant
+
+        Run the sample with file input and speaker output:
+
+            $ python -m googlesamples.assistant -i <input file>
+
+        Run the sample with file input and output:
+
+            $ python -m googlesamples.assistant -i <input file> -o <output file>
+        """
+        # Setup logging.
+        logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
+
+        # Load OAuth 2.0 credentials.
+        try:
+            with open(credentials, 'r') as f:
+                credentials = google.oauth2.credentials.Credentials(token=None,
+                                                                    **json.load(f))
+                http_request = google.auth.transport.requests.Request()
+                credentials.refresh(http_request)
+        except Exception as e:
+            logging.error('Error loading credentials: %s', e)
+            logging.error('Run google-oauthlib-tool to initialize '
+                          'new OAuth 2.0 credentials.')
+            sys.exit(-1)
+
+        # Create an authorized gRPC channel.
+        grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
+            credentials, http_request, api_endpoint)
+        logging.info('Connecting to %s', api_endpoint)
+
+        # Configure audio source and sink.
+        audio_device = None
+        audio_source = audio_device = (
+            audio_device or audio_helpers.SoundDeviceStream(
+                sample_rate=audio_sample_rate,
+                sample_width=audio_sample_width,
+                block_size=audio_block_size,
+                flush_size=audio_flush_size
+            )
+        )
+        audio_sink = audio_device = (
+            audio_device or audio_helpers.SoundDeviceStream(
+                sample_rate=audio_sample_rate,
+                sample_width=audio_sample_width,
+                block_size=audio_block_size,
+                flush_size=audio_flush_size
+            )
+        )
+        # Create conversation stream with the given audio source and sink.
+        conversation_stream = audio_helpers.ConversationStream(
+            source=audio_source,
+            sink=audio_sink,
+            iter_size=audio_iter_size,
+            sample_width=audio_sample_width,
+        )
+
+        if not device_id or not device_model_id:
+            try:
+                with open(device_config) as f:
+                    device = json.load(f)
+                    device_id = device['id']
+                    device_model_id = device['model_id']
+                    logging.info("Using device model %s and device id %s",
+                                 device_model_id,
+                                 device_id)
+            except Exception as e:
+                logging.warning('Device config not found: %s' % e)
+                logging.info('Registering device')
+                if not device_model_id:
+                    logging.error('Option --device-model-id required '
+                                  'when registering a device instance.')
+                    sys.exit(-1)
+                if not project_id:
+                    logging.error('Option --project-id required '
+                                  'when registering a device instance.')
+                    sys.exit(-1)
+                device_base_url = (
+                    'https://%s/v1alpha2/projects/%s/devices' % (api_endpoint,
+                                                                 project_id)
+                )
+                device_id = str(uuid.uuid1())
+                payload = {
+                    'id': device_id,
+                    'model_id': device_model_id,
+                    'client_type': 'SDK_SERVICE'
+                }
+                session = google.auth.transport.requests.AuthorizedSession(
+                    credentials
+                )
+                r = session.post(device_base_url, data=json.dumps(payload))
+                if r.status_code != 200:
+                    logging.error('Failed to register device: %s', r.text)
+                    sys.exit(-1)
+                logging.info('Device registered: %s', device_id)
+                pathlib.Path(os.path.dirname(device_config)
+                             ).mkdir(exist_ok=True)
+                with open(device_config, 'w') as f:
+                    json.dump(payload, f)
+
+        device_handler, media_player = get_request_handler(device_id)
+
+        self.assistant = Assistant(lang, device_model_id, device_id, conversation_stream,
+                                   grpc_channel, grpc_deadline, device_handler, media_player)
+
+    def loop(self):
+        continue_conversation = True
+        while continue_conversation:
+            continue_conversation = self.assistant.assist()
 
 
 @click.command()
@@ -254,18 +361,8 @@ class Assistant(object):
               metavar='<language code>',
               default='en-US',
               help='Language code of the Assistant')
-@click.option('--display', is_flag=True, default=False,
-              help='Enable visual display of Assistant responses in HTML.')
 @click.option('--verbose', '-v', is_flag=True, default=False,
               help='Verbose logging.')
-@click.option('--input-audio-file', '-i',
-              metavar='<input file>',
-              help='Path to input audio file. '
-              'If missing, uses audio capture')
-@click.option('--output-audio-file', '-o',
-              metavar='<output file>',
-              help='Path to output audio file. '
-              'If missing, uses audio playback')
 @click.option('--audio-sample-rate',
               default=audio_helpers.DEFAULT_AUDIO_SAMPLE_RATE,
               metavar='<audio sample rate>', show_default=True,
@@ -291,161 +388,12 @@ class Assistant(object):
 @click.option('--grpc-deadline', default=DEFAULT_GRPC_DEADLINE,
               metavar='<grpc deadline>', show_default=True,
               help='gRPC deadline in seconds')
-@click.option('--once', default=False, is_flag=True,
-              help='Force termination after a single conversation.')
-def main(api_endpoint, credentials, project_id,
-         device_model_id, device_id, device_config,
-         lang, display, verbose,
-         input_audio_file, output_audio_file,
-         audio_sample_rate, audio_sample_width,
-         audio_iter_size, audio_block_size, audio_flush_size,
-         grpc_deadline, once, *args, **kwargs):
-    """Samples for the Google Assistant API.
-
-    Examples:
-      Run the sample with microphone input and speaker output:
-
-        $ python -m googlesamples.assistant
-
-      Run the sample with file input and speaker output:
-
-        $ python -m googlesamples.assistant -i <input file>
-
-      Run the sample with file input and output:
-
-        $ python -m googlesamples.assistant -i <input file> -o <output file>
-    """
-    # Setup logging.
-    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
-
-    # Load OAuth 2.0 credentials.
-    try:
-        with open(credentials, 'r') as f:
-            credentials = google.oauth2.credentials.Credentials(token=None,
-                                                                **json.load(f))
-            http_request = google.auth.transport.requests.Request()
-            credentials.refresh(http_request)
-    except Exception as e:
-        logging.error('Error loading credentials: %s', e)
-        logging.error('Run google-oauthlib-tool to initialize '
-                      'new OAuth 2.0 credentials.')
-        sys.exit(-1)
-
-    # Create an authorized gRPC channel.
-    grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
-        credentials, http_request, api_endpoint)
-    logging.info('Connecting to %s', api_endpoint)
-
-    # Configure audio source and sink.
-    audio_device = None
-    if input_audio_file:
-        audio_source = audio_helpers.WaveSource(
-            open(input_audio_file, 'rb'),
-            sample_rate=audio_sample_rate,
-            sample_width=audio_sample_width
-        )
-    else:
-        audio_source = audio_device = (
-            audio_device or audio_helpers.SoundDeviceStream(
-                sample_rate=audio_sample_rate,
-                sample_width=audio_sample_width,
-                block_size=audio_block_size,
-                flush_size=audio_flush_size
-            )
-        )
-    if output_audio_file:
-        audio_sink = audio_helpers.WaveSink(
-            open(output_audio_file, 'wb'),
-            sample_rate=audio_sample_rate,
-            sample_width=audio_sample_width
-        )
-    else:
-        audio_sink = audio_device = (
-            audio_device or audio_helpers.SoundDeviceStream(
-                sample_rate=audio_sample_rate,
-                sample_width=audio_sample_width,
-                block_size=audio_block_size,
-                flush_size=audio_flush_size
-            )
-        )
-    # Create conversation stream with the given audio source and sink.
-    conversation_stream = audio_helpers.ConversationStream(
-        source=audio_source,
-        sink=audio_sink,
-        iter_size=audio_iter_size,
-        sample_width=audio_sample_width,
-    )
-
-    if not device_id or not device_model_id:
-        try:
-            with open(device_config) as f:
-                device = json.load(f)
-                device_id = device['id']
-                device_model_id = device['model_id']
-                logging.info("Using device model %s and device id %s",
-                             device_model_id,
-                             device_id)
-        except Exception as e:
-            logging.warning('Device config not found: %s' % e)
-            logging.info('Registering device')
-            if not device_model_id:
-                logging.error('Option --device-model-id required '
-                              'when registering a device instance.')
-                sys.exit(-1)
-            if not project_id:
-                logging.error('Option --project-id required '
-                              'when registering a device instance.')
-                sys.exit(-1)
-            device_base_url = (
-                'https://%s/v1alpha2/projects/%s/devices' % (api_endpoint,
-                                                             project_id)
-            )
-            device_id = str(uuid.uuid1())
-            payload = {
-                'id': device_id,
-                'model_id': device_model_id,
-                'client_type': 'SDK_SERVICE'
-            }
-            session = google.auth.transport.requests.AuthorizedSession(
-                credentials
-            )
-            r = session.post(device_base_url, data=json.dumps(payload))
-            if r.status_code != 200:
-                logging.error('Failed to register device: %s', r.text)
-                sys.exit(-1)
-            logging.info('Device registered: %s', device_id)
-            pathlib.Path(os.path.dirname(device_config)).mkdir(exist_ok=True)
-            with open(device_config, 'w') as f:
-                json.dump(payload, f)
-
-    device_handler, media_player = get_request_handler(device_id)
-
-    with Assistant(lang, device_model_id, device_id,
-                   conversation_stream, display,
-                   grpc_channel, grpc_deadline,
-                   device_handler, media_player) as assistant:
-        # If file arguments are supplied:
-        # exit after the first turn of the conversation.
-        if input_audio_file or output_audio_file:
-            assistant.assist()
-            return
-
-        # If no file arguments supplied:
-        # keep recording voice requests using the microphone
-        # and playing back assistant response using the speaker.
-        # When the once flag is set, don't wait for a trigger. Otherwise, wait.
-        wait_for_user_trigger = not once
-        while True:
-            if wait_for_user_trigger:
-                click.pause(info='Press Enter to send a new request...')
-            continue_conversation = assistant.assist()
-            # wait for user trigger if there is no follow-up turn in
-            # the conversation.
-            wait_for_user_trigger = not continue_conversation
-
-            # If we only want one conversation, break.
-            if once and (not continue_conversation):
-                break
+def main(api_endpoint, credentials, project_id, device_model_id, device_id, device_config, lang, verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size, audio_flush_size, grpc_deadline):
+    instance = PushToTalkInstance(api_endpoint, credentials, project_id, device_model_id, device_id, device_config, lang,
+                                  verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size, audio_flush_size, grpc_deadline)
+    while True:
+        input("Press Enter to start issue command")
+        instance.loop()
 
 
 if __name__ == '__main__':
