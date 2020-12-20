@@ -1,8 +1,10 @@
 from os import path, mkdir
-from whoosh.index import create_in
+from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.query import *
 from threading import Thread
+
+DEVICE_INDEX_DIR = 'device_index'
 
 
 class DeviceManager:
@@ -15,13 +17,14 @@ class DeviceManager:
             location_name=TEXT(stored=True),
             location_type=TEXT(stored=True)
         )
-        if (not path.isdir('device_index')):
-            mkdir('device_index')
-        self.index = create_in('device_index', schema)
+        if (not path.isdir(DEVICE_INDEX_DIR)):
+            mkdir(DEVICE_INDEX_DIR)
+            self.index = create_in(DEVICE_INDEX_DIR, schema)
+        else:
+            self.index = open_dir(DEVICE_INDEX_DIR, schema)
         self.device_processes = []
 
     def add_device(self, device):
-        device_id = len(self.devices)
         self.devices.append(device)
         writer = self.index.writer()
         writer.add_document(
