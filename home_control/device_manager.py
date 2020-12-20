@@ -74,11 +74,13 @@ class DeviceManager:
         if ('id' in query):
             terms.append(Term('id', query['id']))
         if ('name' in query):
-            terms.append(Term('name', query['name']))
+            terms.append(Or([Term('name', word)
+                             for word in query['name'].split() if len(word) > 0]))
         if ('type' in query):
             terms.append(Term('type', query['type']))
         if ('location_name' in query):
-            terms.append(Term('location_name', query['location_name']))
+            terms.append(Or([Term('name', word)
+                             for word in query['location_name'].split() if len(word) > 0]))
         if ('location_type' in query):
             terms.append(Term('location_type', query['location_type']))
         parsed_query = And(terms)

@@ -1,11 +1,18 @@
 import device_helpers
 from media.mediaplayer import VlcPlayer
 from media.youtube_search_engine import youtube_search, youtube_stream_link
+from home_control.device_manager import DeviceManager
+from utils.text_to_speech import TextToSpeechHelper
 
 
 def get_request_handler(device_id):
     media_player = VlcPlayer()
+    device_manager = DeviceManager()
+    tts_helper = TextToSpeechHelper('service_account.json')
     device_handler = device_helpers.DeviceRequestHandler(device_id)
+
+    for item in device_manager.devices:
+        item.connect('broker.hivemq.com', 1883)
 
     @device_handler.command('action.devices.commands.mediaStop')
     def stopMedia():
@@ -48,13 +55,25 @@ def get_request_handler(device_id):
         current_level = media_player.get_volume()
         media_player.set_volume(current_level + relativeSteps)
 
-    @device_handler.command('com.homepi.homeControl.light.commands.On')
-    def turnLightOn(room):
-        print('Turning on light in %s' % room)
+    @device_handler.command('com.homepi.homeControl.commands.TurnOn')
+    def turnOn(device_name):
+        print('turnOn(%s)' % (device_name))
+        search_results = device_manager.search_device({'name': device_name})
+        if (len(search_results) == 0):
+            tts_helper.speak('I cannot find any device with that name')
+            return
+        selected_device = search_results[0]
+        selected_device.handle_command({'on': True})
 
-    @device_handler.command('com.homepi.homeControl.light.commands.Off')
-    def turnLightOff(room):
-        print('Turning off light in %s' % room)
+    @device_handler.command('com.homepi.homeControl.commands.TurnOff')
+    def turnOff(device_name):
+        print('turnOff(%s)' % (device_name))
+        search_results = device_manager.search_device({'name': device_name})
+        if (len(search_results) == 0):
+            tts_helper.speak('I cannot find any device with that name')
+            return
+        selected_device = search_results[0]
+        selected_device.handle_command({'off': True})
 
     @device_handler.command('com.homepi.homeControl.media.commands.Play')
     def playMedia(title):

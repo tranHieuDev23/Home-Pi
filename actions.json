@@ -6,7 +6,7 @@
     },
     "actions": [
         {
-            "name": "com.homepi.homeControl.light.actions.On",
+            "name": "com.homepi.homeControl.actions.On",
             "availability": {
                 "deviceClasses": [
                     {
@@ -15,17 +15,16 @@
                 ]
             },
             "intent": {
-                "name": "com.homepi.homeControl.light.intents.On",
+                "name": "com.homepi.homeControl.intents.On",
                 "parameters": [
                     {
-                        "name": "room",
+                        "name": "device_name",
                         "type": "SchemaOrg_Text"
                     }
                 ],
                 "trigger": {
                     "queryPatterns": [
-                        "Turn on (the)? light in (the)? $SchemaOrg_Text:room",
-                        "Turn on (the)? lights in (the)? $SchemaOrg_Text:room"
+                        "Turn on $SchemaOrg_Text:device_name"
                     ]
                 }
             },
@@ -34,15 +33,10 @@
                     "templatedResponse": {
                         "items": [
                             {
-                                "simpleResponse": {
-                                    "textToSpeech": "Turning on the light in the $room"
-                                }
-                            },
-                            {
                                 "deviceExecution": {
-                                    "command": "com.homepi.homeControl.light.commands.On",
+                                    "command": "com.homepi.homeControl.commands.TurnOn",
                                     "params": {
-                                        "room": "$room"
+                                        "device_name": "$device_name"
                                     }
                                 }
                             }
@@ -52,7 +46,7 @@
             }
         },
         {
-            "name": "com.homepi.homeControl.light.actions.Off",
+            "name": "com.homepi.homeControl.actions.Off",
             "availability": {
                 "deviceClasses": [
                     {
@@ -61,17 +55,16 @@
                 ]
             },
             "intent": {
-                "name": "com.homepi.homeControl.light.intents.Off",
+                "name": "com.homepi.homeControl.intents.Off",
                 "parameters": [
                     {
-                        "name": "room",
+                        "name": "device_name",
                         "type": "SchemaOrg_Text"
                     }
                 ],
                 "trigger": {
                     "queryPatterns": [
-                        "Turn off (the)? light in the $SchemaOrg_Text:room",
-                        "Turn off (the)? lights in the $SchemaOrg_Text:room"
+                        "Turn off $SchemaOrg_Text:device_name"
                     ]
                 }
             },
@@ -80,15 +73,10 @@
                     "templatedResponse": {
                         "items": [
                             {
-                                "simpleResponse": {
-                                    "textToSpeech": "Turning off the light in the $room"
-                                }
-                            },
-                            {
                                 "deviceExecution": {
-                                    "command": "com.homepi.homeControl.light.commands.Off",
+                                    "command": "com.homepi.homeControl.commands.TurnOff",
                                     "params": {
-                                        "room": "$room"
+                                        "device_name": "$device_name"
                                     }
                                 }
                             }
