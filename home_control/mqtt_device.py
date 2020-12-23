@@ -56,7 +56,7 @@ class MqttDevice(Device):
         self.__mqtt_client.publish(self.__command_topic, command_str)
 
     def on_connect(self, client, userdata, flags, rc):
-        print('[MqttDevice] Connected to broker')
+        print('[MqttDevice] %s connected to broker' % self.__name)
 
     def on_status_message(self, status_json):
         raise NotImplementedError()

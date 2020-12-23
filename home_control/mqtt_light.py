@@ -1,6 +1,5 @@
 from .device import DeviceType
 from .mqtt_device import MqttDevice
-import json
 
 
 class MqttLight(MqttDevice):
