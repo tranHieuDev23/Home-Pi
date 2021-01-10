@@ -19,7 +19,7 @@ import json
 import logging
 import os
 import os.path
-from request_handler import get_request_handler
+from .speech_request_handler import get_speech_request_handler
 import pathlib2 as pathlib
 import sys
 import uuid
@@ -35,15 +35,7 @@ from google.assistant.embedded.v1alpha2 import (
     embedded_assistant_pb2_grpc
 )
 from tenacity import retry, stop_after_attempt, retry_if_exception
-
-try:
-    from . import (
-        assistant_helpers,
-        audio_helpers,
-    )
-except (SystemError, ImportError):
-    import assistant_helpers
-    import audio_helpers
+from . import assistant_helpers, audio_helpers
 
 
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
@@ -317,7 +309,7 @@ class PushToTalkInstance:
                 with open(device_config, 'w') as f:
                     json.dump(payload, f)
 
-        device_handler, media_player = get_request_handler(device_id)
+        device_handler, media_player = get_speech_request_handler(device_id)
 
         self.assistant = Assistant(lang, device_model_id, device_id, conversation_stream,
                                    grpc_channel, grpc_deadline, device_handler, media_player)
@@ -394,6 +386,29 @@ def main(api_endpoint, credentials, project_id, device_model_id, device_id, devi
     while True:
         input("Press Enter to start issue command")
         instance.loop()
+
+
+def get_default_push_to_talk():
+    api_endpoint = ASSISTANT_API_ENDPOINT
+    credentials = os.path.join(click.get_app_dir(
+        'google-oauthlib-tool'), 'credentials.json')
+    project_id = os.getenv('PROJECT_ID')
+    device_model_id = os.getenv('DEVICE_MODEL_ID')
+    device_config = os.path.join(click.get_app_dir(
+        'googlesamples-assistant'), 'device_config.json')
+    lang = 'en-US'
+    verbose = False
+    audio_sample_rate = audio_helpers.DEFAULT_AUDIO_SAMPLE_RATE
+    audio_sample_width = audio_helpers.DEFAULT_AUDIO_SAMPLE_WIDTH
+    audio_iter_size = audio_helpers.DEFAULT_AUDIO_ITER_SIZE
+    audio_block_size = audio_helpers.DEFAULT_AUDIO_DEVICE_BLOCK_SIZE
+    audio_flush_size = audio_helpers.DEFAULT_AUDIO_DEVICE_FLUSH_SIZE
+    grpc_deadline = DEFAULT_GRPC_DEADLINE
+    return PushToTalkInstance(
+        api_endpoint, credentials, project_id, device_model_id, None, device_config, lang,
+        verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size,
+        audio_flush_size, grpc_deadline
+    )
 
 
 if __name__ == '__main__':

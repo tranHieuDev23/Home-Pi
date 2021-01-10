@@ -19,3 +19,4 @@ pydub
 whoosh
 pvporcupine
 pyaudio
+pybluez
