@@ -20,3 +20,4 @@ whoosh
 pvporcupine
 pyaudio
 pybluez
+cryptography>=3.2

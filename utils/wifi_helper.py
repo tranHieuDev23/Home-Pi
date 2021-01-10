@@ -20,18 +20,24 @@ def is_wifi_connected():
     return get_ip_address() is not None
 
 
-def discover_ssid():
+def discover_wifi():
     process = subprocess.Popen(
         ['sudo', 'iwlist', 'wlan0', 'scan'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, _ = process.communicate()
-    ssids = []
+    networks = []
+    wifi_network = dict()
     for l in out.decode('utf-8').split('\n'):
         l = l.strip()
-        if (l.startswith("ESSID:")):
+        if (l.startswith('Encryption key:')):
+            wifi_network['open'] = not l.endswith('on')
+        if (l.startswith('ESSID:')):
             left_quote = l.find('"')
             right_quote = l.rfind('"')
-            ssids.append(l[left_quote + 1:right_quote])
-    return ssids
+            wifi_network['ssid'] = l[left_quote + 1:right_quote]
+            if ('open' not in wifi_network):
+                wifi_network['open'] = False
+            networks.append(wifi_network)
+    return networks
 
 
 def wifi_connect(ssid, psk):

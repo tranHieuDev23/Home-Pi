@@ -70,15 +70,13 @@ class PorcupineInstance(Thread):
             if pa is not None:
                 pa.terminate()
 
-    def show_audio_devices(self, cls):
+    @classmethod
+    def show_audio_devices(cls):
         fields = ('index', 'name', 'defaultSampleRate', 'maxInputChannels')
-
         pa = pyaudio.PyAudio()
-
         for i in range(pa.get_device_count()):
             info = pa.get_device_info_by_index(i)
             print(', '.join("'%s': '%s'" % (k, str(info[k])) for k in fields))
-
         pa.terminate()
 
     def on_hotword_detected(self):
