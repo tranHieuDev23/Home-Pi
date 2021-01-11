@@ -37,6 +37,7 @@ def discover_wifi():
             if ('open' not in wifi_network):
                 wifi_network['open'] = False
             networks.append(wifi_network)
+            wifi_network = dict()
     return networks
 
 
