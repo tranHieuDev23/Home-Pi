@@ -58,10 +58,10 @@ def on_message_factory(device_id):
             __scan_wifi(client_sock)
             return
         if (action == 'connectWifi'):
-            __connect_wifi(client_sock)
+            __connect_wifi(client_sock, message_json)
             return
         if (action == 'register'):
-            __connect_user(client_sock)
+            __connect_user(client_sock, message_json)
             return
         client_sock.send(json.dumps(__get_failure_response_str()))
 

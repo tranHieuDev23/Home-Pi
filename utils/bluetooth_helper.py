@@ -6,27 +6,28 @@ import os
 BLUETOOTH_READ_BUFFER = 1024
 
 
-def __handle_client(client_sock, on_message):
-    try:
-        while True:
-            message_bytes = client_sock.recv(BLUETOOTH_READ_BUFFER)
-            message_str = message_bytes.decode('uft-8').strip()
-            message_json = dict()
-            try:
-                message_json = json.loads(message_str)
-            except:
-                print('Malformed JSON message: %s' % message_str)
-                continue
-            print('Received JSON message: %s' % str(message_json))
-            on_message(client_sock, message_json)
-    except:
-        return
-
-
 class BluetoothInstance(Thread):
     def __init__(self, on_message):
         super().__init__()
         self.on_message = on_message
+
+    def __handle_client(self, client_sock, on_message):
+        try:
+            while True:
+                message_bytes = client_sock.recv(BLUETOOTH_READ_BUFFER)
+                message_str = message_bytes.decode('utf-8').strip()
+                print(message_str)
+                message_json = dict()
+                try:
+                    message_json = json.loads(message_str)
+                except:
+                    print('Malformed JSON message: %s' % message_str)
+                    continue
+                print('Received JSON message: %s' % str(message_json))
+                on_message(client_sock, message_json)
+        except RuntimeError as e:
+            print(e)
+            return
 
     def run(self):
         def bluetooth_loop(on_message):
@@ -44,7 +45,7 @@ class BluetoothInstance(Thread):
                 print("Waiting for connection on RFCOMM channel %d" % port)
                 client_sock, client_info = server_sock.accept()
                 print("Bluetooth connected to", client_info)
-                __handle_client(client_sock, on_message)
+                self.__handle_client(client_sock, on_message)
                 client_sock.close()
                 server_sock.close()
                 print('Bluetooth disconnected from', client_info)

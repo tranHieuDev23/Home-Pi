@@ -2,8 +2,6 @@ import argparse
 import pvporcupine
 from assistant.pushtotalk import get_default_push_to_talk
 from utils.porcupine_helper import PorcupineInstance
-from utils.bluetooth_helper import BluetoothInstance
-from bluetooth_request_handler import on_message_factory
 
 
 def __parse_arguments():
@@ -66,11 +64,7 @@ def main():
         sensitivities=args.sensitivities,
         input_device_index=args.audio_device_index,
         push_to_talk=get_default_push_to_talk())
-    porcupine_instance.daemon = True
-    porcupine_instance.start()
-
-    bluetooth_instance = BluetoothInstance(on_message_factory("speaker:1235"))
-    bluetooth_instance.run()
+    porcupine_instance.run()
 
 
 if __name__ == '__main__':
