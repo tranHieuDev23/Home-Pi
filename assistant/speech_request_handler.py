@@ -1,11 +1,11 @@
-import device_helpers
+from . import device_helpers
 from media.mediaplayer import VlcPlayer
 from media.youtube_search_engine import youtube_search, youtube_stream_link
 from home_control.device_manager import DeviceManager
 from utils.text_to_speech import TextToSpeechHelper
 
 
-def get_request_handler(device_id):
+def get_speech_request_handler(device_id):
     media_player = VlcPlayer()
     device_manager = DeviceManager()
     tts_helper = TextToSpeechHelper('service_account.json')
