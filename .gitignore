@@ -8,3 +8,4 @@ creds.data
 .player.json
 device_index
 device_database.db
+token.txt

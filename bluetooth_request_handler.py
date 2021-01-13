@@ -1,5 +1,6 @@
 import json
 from utils.wifi_helper import discover_wifi, wifi_connect, is_wifi_connected
+from home_control.home_control_service import validate_token, set_token
 
 
 def on_message_factory(device_id):
@@ -31,19 +32,25 @@ def on_message_factory(device_id):
 
     def __connect_wifi(client_sock, message_json):
         if ('ssid' not in message_json or 'psk' not in message_json):
-            client_sock.send(__get_failure_response_str())
+            __send_message(client_sock, __get_failure_response_str())
             return
         ssid = message_json['ssid']
         psk = message_json['psk']
         ip_address = wifi_connect(ssid, psk)
         if (ip_address is None):
-            client_sock.send(__get_failure_response_str())
+            __send_message(client_sock, __get_failure_response_str())
             return
         response = __get_base_response(True)
         __send_message(client_sock, json.dumps(response))
 
     def __connect_user(client_sock, message_json):
-        response = __get_base_response(True)
+        if ('token' not in message_json):
+            __send_message(client_sock, __get_failure_response_str())
+            return
+        token = message_json['token']
+        set_token(token)
+        is_valid_token = validate_token()
+        response = __get_base_response(is_valid_token)
         __send_message(client_sock, json.dumps(response))
 
     def on_message(client_sock, message_json):
