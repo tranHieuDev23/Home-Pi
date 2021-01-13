@@ -60,7 +60,7 @@ class Assistant(object):
       device_handler: callback for device actions.
     """
 
-    def __init__(self, language_code, device_model_id, device_id, conversation_stream, channel, deadline_sec, device_handler, media_player):
+    def __init__(self, language_code, device_model_id, device_id, conversation_stream, deadline_sec, device_handler, media_player):
         self.language_code = language_code
         self.device_model_id = device_model_id
         self.device_id = device_id
@@ -78,9 +78,7 @@ class Assistant(object):
         self.is_new_conversation = True
 
         # Create Google Assistant API gRPC client.
-        self.assistant = embedded_assistant_pb2_grpc.EmbeddedAssistantStub(
-            channel
-        )
+        self.assistant_client = None
         self.deadline = deadline_sec
 
         self.device_handler = device_handler
@@ -92,6 +90,14 @@ class Assistant(object):
         if e:
             return False
         self.conversation_stream.close()
+
+    def set_assistant_channel(self, channel):
+        try:
+            self.assistant_client = embedded_assistant_pb2_grpc.EmbeddedAssistantStub(
+                channel
+            )
+        except:
+            self.assistant_client = None
 
     def is_grpc_error_unavailable(e):
         is_grpc_error = isinstance(e, grpc.RpcError)
@@ -107,6 +113,9 @@ class Assistant(object):
 
         Returns: True if conversation should continue.
         """
+        if (self.assistant_client is None):
+            return False
+
         continue_conversation = False
         device_actions_futures = []
 
@@ -122,8 +131,8 @@ class Assistant(object):
 
         # This generator yields AssistResponse proto messages
         # received from the gRPC Google Assistant API.
-        for resp in self.assistant.Assist(iter_log_assist_requests(),
-                                          self.deadline):
+        for resp in self.assistant_client.Assist(iter_log_assist_requests(),
+                                                 self.deadline):
             assistant_helpers.log_assist_response_without_audio(resp)
             if resp.event_type == END_OF_UTTERANCE:
                 logging.info('End of audio request detected.')
@@ -203,7 +212,7 @@ class Assistant(object):
 
 
 class PushToTalkInstance:
-    def __init__(self, api_endpoint, credentials, project_id, device_model_id, device_id, device_config, lang, verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size, audio_flush_size, grpc_deadline):
+    def __init__(self, api_endpoint, credentials_file, project_id, device_model_id, device_id, device_config, lang, verbose, audio_sample_rate, audio_sample_width, audio_iter_size, audio_block_size, audio_flush_size, grpc_deadline):
         """Samples for the Google Assistant API.
 
         Examples:
@@ -221,24 +230,6 @@ class PushToTalkInstance:
         """
         # Setup logging.
         logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
-
-        # Load OAuth 2.0 credentials.
-        try:
-            with open(credentials, 'r') as f:
-                credentials = google.oauth2.credentials.Credentials(token=None,
-                                                                    **json.load(f))
-                http_request = google.auth.transport.requests.Request()
-                credentials.refresh(http_request)
-        except Exception as e:
-            logging.error('Error loading credentials: %s', e)
-            logging.error('Run google-oauthlib-tool to initialize '
-                          'new OAuth 2.0 credentials.')
-            sys.exit(-1)
-
-        # Create an authorized gRPC channel.
-        grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
-            credentials, http_request, api_endpoint)
-        logging.info('Connecting to %s', api_endpoint)
 
         # Configure audio source and sink.
         audio_device = None
@@ -297,7 +288,7 @@ class PushToTalkInstance:
                     'client_type': 'SDK_SERVICE'
                 }
                 session = google.auth.transport.requests.AuthorizedSession(
-                    credentials
+                    credentials_file
                 )
                 r = session.post(device_base_url, data=json.dumps(payload))
                 if r.status_code != 200:
@@ -311,13 +302,64 @@ class PushToTalkInstance:
 
         device_handler, media_player = get_speech_request_handler(device_id)
 
-        self.assistant = Assistant(lang, device_model_id, device_id, conversation_stream,
-                                   grpc_channel, grpc_deadline, device_handler, media_player)
+        self.assistant = Assistant(lang, device_model_id, device_id,
+                                   conversation_stream, grpc_deadline, device_handler, media_player)
+
+        # OAuth 2.0 credentials file
+        self.credentials_file = credentials_file
+        # Authorized gRPC channel
+        self.grpc_channel = None
+        self.api_endpoint = api_endpoint
+        self.__connect_to_grpc_channel()
+
+    def __is_grpc_channel_ready(self):
+        if (self.grpc_channel == None):
+            return False
+        try:
+            grpc.channel_ready_future(self.grpc_channel).result(timeout=5)
+            return True
+        except:
+            return False
+
+    def __connect_to_grpc_channel(self):
+        try:
+            with open(self.credentials_file, 'r') as f:
+                credentials = google.oauth2.credentials.Credentials(token=None,
+                                                                    **json.load(f))
+                http_request = google.auth.transport.requests.Request()
+                credentials.refresh(http_request)
+        except Exception as e:
+            logging.error('Error loading credentials: %s', e)
+            logging.error(
+                'Run google-oauthlib-tool to initialize new OAuth 2.0 credentials.')
+            return False
+
+        try:
+            self.grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
+                credentials, http_request, self.api_endpoint)
+            self.assistant.set_assistant_channel(self.grpc_channel)
+            logging.info('Connecting to %s', self.api_endpoint)
+        except Exception as e:
+            logging.error(
+                'Error connecting to API endpoint credentials: %s', e)
+            return False
+        return True
 
     def loop(self):
-        continue_conversation = True
-        while continue_conversation:
-            continue_conversation = self.assistant.assist()
+        if (not self.__is_grpc_channel_ready()):
+            if (not self.__connect_to_grpc_channel()):
+                return False
+
+        try:
+            continue_conversation = True
+            while continue_conversation:
+                continue_conversation = self.assistant.assist()
+            return True
+        except Exception as e:
+            is_grpc_error = isinstance(e, grpc.RpcError)
+            if (is_grpc_error):
+                self.grpc_channel = None
+            return False
 
 
 @click.command()

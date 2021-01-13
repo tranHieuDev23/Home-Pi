@@ -34,6 +34,8 @@ def __parse_arguments():
     parser.add_argument('--audio_device_index',
                         help='Index of input audio device.', type=int, default=None)
     parser.add_argument('--show_audio_devices', action='store_true')
+    parser.add_argument('--no_internet_audio_file', help='Audio file that will be played when there are no internet connection',
+                        type=str, default='resources/no_internet_connection.mp3')
     args = parser.parse_args()
     if (args.show_audio_devices):
         return args
@@ -63,7 +65,8 @@ def main():
         keyword_paths=args.keyword_paths,
         sensitivities=args.sensitivities,
         input_device_index=args.audio_device_index,
-        push_to_talk=get_default_push_to_talk())
+        push_to_talk=get_default_push_to_talk(),
+        no_internet_audio_file=args.no_internet_audio_file)
     porcupine_instance.run()
 
 
