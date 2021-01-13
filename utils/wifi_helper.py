@@ -56,8 +56,7 @@ def wifi_connect(ssid, psk):
             config_file.close()
 
     def __run_command(command):
-        cmd_result = os.system(command)
-        print(command + " - " + str(cmd_result))
+        os.system(command)
 
     def __backup_old_file(old_config):
         __run_command('sudo cp %s backup.conf' % old_config)

@@ -3,6 +3,9 @@ from utils.wifi_helper import discover_wifi, wifi_connect, is_wifi_connected
 
 
 def on_message_factory(device_id):
+    def __send_message(client_sock, message_str):
+        client_sock.send(message_str + '\n')
+
     def __get_base_response(success):
         response = dict()
         response['success'] = success
@@ -14,17 +17,17 @@ def on_message_factory(device_id):
     def __get_device_id(client_sock):
         response = __get_base_response(True)
         response['deviceId'] = device_id
-        client_sock.send(json.dumps(response))
+        __send_message(client_sock, json.dumps(response))
 
     def __get_wifi_status(client_sock):
         response = __get_base_response(True)
         response['connected'] = is_wifi_connected()
-        client_sock.send(json.dumps(response))
+        __send_message(client_sock, json.dumps(response))
 
     def __scan_wifi(client_sock):
         response = __get_base_response(True)
         response['networks'] = discover_wifi()
-        client_sock.send(json.dumps(response))
+        __send_message(client_sock, json.dumps(response))
 
     def __connect_wifi(client_sock, message_json):
         if ('ssid' not in message_json or 'psk' not in message_json):
@@ -37,15 +40,16 @@ def on_message_factory(device_id):
             client_sock.send(__get_failure_response_str())
             return
         response = __get_base_response(True)
-        client_sock.send(json.dumps(response))
+        __send_message(client_sock, json.dumps(response))
 
     def __connect_user(client_sock, message_json):
         response = __get_base_response(True)
-        client_sock.send(json.dumps(response))
+        __send_message(client_sock, json.dumps(response))
 
     def on_message(client_sock, message_json):
         if ('action' not in message_json):
-            client_sock.send(json.dumps(__get_failure_response_str()))
+            __send_message(client_sock, json.dumps(
+                __get_failure_response_str()))
             return
         action = message_json['action']
         if (action == 'getId'):
@@ -63,6 +67,6 @@ def on_message_factory(device_id):
         if (action == 'register'):
             __connect_user(client_sock, message_json)
             return
-        client_sock.send(json.dumps(__get_failure_response_str()))
+        __send_message(client_sock, json.dumps(__get_failure_response_str()))
 
     return on_message

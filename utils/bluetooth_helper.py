@@ -16,7 +16,6 @@ class BluetoothInstance(Thread):
             while True:
                 message_bytes = client_sock.recv(BLUETOOTH_READ_BUFFER)
                 message_str = message_bytes.decode('utf-8').strip()
-                print(message_str)
                 message_json = dict()
                 try:
                     message_json = json.loads(message_str)
@@ -25,8 +24,8 @@ class BluetoothInstance(Thread):
                     continue
                 print('Received JSON message: %s' % str(message_json))
                 on_message(client_sock, message_json)
-        except RuntimeError as e:
-            print(e)
+        except Exception as e:
+            print('Exception while reading from client socket: ' + str(e))
             return
 
     def run(self):
@@ -46,7 +45,10 @@ class BluetoothInstance(Thread):
                 client_sock, client_info = server_sock.accept()
                 print("Bluetooth connected to", client_info)
                 self.__handle_client(client_sock, on_message)
-                client_sock.close()
+                try:
+                    client_sock.close()
+                except Exception as e:
+                    print('Exception while closing client socket: ' + str(e))
                 server_sock.close()
                 print('Bluetooth disconnected from', client_info)
 
