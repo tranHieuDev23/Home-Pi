@@ -7,7 +7,7 @@ from pydub.playback import play
 
 
 class PorcupineInstance(Thread):
-    def __init__(self, library_path, model_path, keyword_paths, sensitivities, input_device_index=None, push_to_talk=None, no_internet_audio_file=None):
+    def __init__(self, library_path, model_path, keyword_paths, sensitivities, input_device_index=None, push_to_talk=None, hotword_detected_file=None, no_internet_audio_file=None):
         """
         Constructor.
         :param library_path: Absolute path to Porcupine's dynamic library.
@@ -26,6 +26,7 @@ class PorcupineInstance(Thread):
         self._sensitivities = sensitivities
         self._input_device_index = input_device_index
         self._push_to_talk = push_to_talk
+        self._hotword_detected_file = hotword_detected_file
         self._no_internet_audio_file = no_internet_audio_file
 
     def run(self):
@@ -82,6 +83,17 @@ class PorcupineInstance(Thread):
             print(', '.join("'%s': '%s'" % (k, str(info[k])) for k in fields))
         pa.terminate()
 
+    def __notify_hotword_detected(self):
+        if (self._hotword_detected_file is None):
+            return
+        try:
+            with open(self._hotword_detected_file, 'rb') as detected_audio:
+                response_audio = AudioSegment.from_file(
+                    detected_audio, format='mp3')
+                play(response_audio)
+        except Exception as e:
+            print('Problem while playing hotword detected audio:', str(e))
+
     def __notify_no_internet(self):
         if (self._no_internet_audio_file is None):
             return
@@ -95,6 +107,7 @@ class PorcupineInstance(Thread):
 
     def on_hotword_detected(self):
         print("Hot word detected!")
+        self.__notify_hotword_detected()
         if (self._push_to_talk is not None):
             if (not self._push_to_talk.loop()):
                 self.__notify_no_internet()
