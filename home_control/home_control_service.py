@@ -46,7 +46,7 @@ def __send_request__(endpoint, request_json):
 
 
 def validate_token():
-    return __send_request__('/api/home-control/validate-token', dict()) is not None
+    return __send_request__('/api/home-control/validate-commander', dict()) is not None
 
 
 def issue_command(device_name, command, params=dict()):
