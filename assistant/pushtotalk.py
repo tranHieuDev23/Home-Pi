@@ -313,7 +313,7 @@ class PushToTalkInstance:
         self.__connect_to_grpc_channel()
 
     def __is_grpc_channel_ready(self):
-        if (self.grpc_channel == None):
+        if (self.grpc_channel is None):
             return False
         try:
             grpc.channel_ready_future(self.grpc_channel).result(timeout=5)

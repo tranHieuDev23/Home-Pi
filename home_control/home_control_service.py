@@ -2,7 +2,7 @@ import requests
 import json
 
 TOKEN_FILE = 'token.txt'
-HOME_CONTROL_API = 'https://938a94bcbdee.ngrok.io'
+HOME_CONTROL_API = 'https://1ecea3c289c9.ngrok.io'
 
 
 def __get_token__():
@@ -28,7 +28,7 @@ def set_token(token):
 
 def __send_request__(endpoint, request_json):
     token = __get_token__()
-    if (token == None):
+    if (token is None):
         return None
     request_json['token'] = token
     response = requests.post(HOME_CONTROL_API + endpoint, json=request_json)
