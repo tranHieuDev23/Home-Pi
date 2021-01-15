@@ -77,10 +77,11 @@ def get_speech_request_handler(device_id):
             target_device, field_values = result
             target_device_name = target_device['displayName']
             isOn = field_values[0]
+            print(isOn)
             if (isOn is None):
                 tts_helper.speak(
                     'Sorry, I don\'t know if %s is turned on' % target_device_name)
-            elif (isOn):
+            elif (isOn == 'true'):
                 tts_helper.speak('%s is turned on' % target_device_name)
             else:
                 tts_helper.speak('%s is not turned on' % target_device_name)
