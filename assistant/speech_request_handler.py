@@ -54,18 +54,36 @@ def get_speech_request_handler(device_id):
     @device_handler.command('com.homepi.homeControl.commands.TurnOn')
     def turnOn(device_name):
         print('turnOn(%s)' % (device_name))
-        success = issue_command(device_name, 'turnOn')
-        if (success):
-            tts_helper.speak('Okay, turning on %s' % device_name)
+        target = issue_command(device_name, 'turnOn')
+        if (target is not None):
+            tts_helper.speak('Okay, turning on %s' % target['displayName'])
         else:
             tts_helper.speak('Sorry, I could not do that')
 
     @device_handler.command('com.homepi.homeControl.commands.TurnOff')
     def turnOff(device_name):
         print('turnOff(%s)' % (device_name))
-        success = issue_command(device_name, 'turnOff')
-        if (success):
-            tts_helper.speak('Okay, turning off %s' % device_name)
+        target = issue_command(device_name, 'turnOff')
+        if (target is not None):
+            tts_helper.speak('Okay, turning off %s' % target['displayName'])
+        else:
+            tts_helper.speak('Sorry, I could not do that')
+
+    @device_handler.command('com.homepi.homeControl.commands.RequestIsOn')
+    def isOn(device_name):
+        print('isOn(%s)' % (device_name))
+        result = get_status(device_name, ['isOn'])
+        if (result is not None):
+            target_device, field_values = result
+            target_device_name = target_device['displayName']
+            isOn = field_values[0]
+            if (isOn is None):
+                tts_helper.speak(
+                    'Sorry, I don\'t know if %s is turned on' % target_device_name)
+            elif (isOn):
+                tts_helper.speak('%s is turned on' % target_device_name)
+            else:
+                tts_helper.speak('%s is not turned on' % target_device_name)
         else:
             tts_helper.speak('Sorry, I could not do that')
 

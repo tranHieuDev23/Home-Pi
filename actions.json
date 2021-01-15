@@ -86,6 +86,46 @@
             }
         },
         {
+            "name": "com.homepi.homeControl.actions.RequestIsOn",
+            "availability": {
+                "deviceClasses": [
+                    {
+                        "assistantSdkDevice": {}
+                    }
+                ]
+            },
+            "intent": {
+                "name": "com.homepi.homeControl.intents.RequestIsOn",
+                "parameters": [
+                    {
+                        "name": "device_name",
+                        "type": "SchemaOrg_Text"
+                    }
+                ],
+                "trigger": {
+                    "queryPatterns": [
+                        "Did I turn on $SchemaOrg_Text:device_name"
+                    ]
+                }
+            },
+            "fulfillment": {
+                "staticFulfillment": {
+                    "templatedResponse": {
+                        "items": [
+                            {
+                                "deviceExecution": {
+                                    "command": "com.homepi.homeControl.commands.RequestIsOn",
+                                    "params": {
+                                        "device_name": "$device_name"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "name": "com.homepi.homeControl.media.actions.Play",
             "availability": {
                 "deviceClasses": [

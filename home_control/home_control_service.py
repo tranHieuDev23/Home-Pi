@@ -51,21 +51,22 @@ def validate_token():
 
 def issue_command(device_name, command, params=dict()):
     request_json = dict()
-    request_json['device_name'] = device_name
+    request_json['deviceName'] = device_name
     request_json['command'] = command
     request_json['params'] = params
     response_json = __send_request__(
         '/api/home-control/issue-command', request_json)
-    if (response_json is None):
-        return False
-    return True
+    if (response_json is None or 'success' not in response_json or not response_json['success']):
+        return None
+    return response_json['target']
 
 
-def get_status(device_name):
+def get_status(device_name, field_names):
     request_json = dict()
-    request_json['device_name'] = device_name
+    request_json['deviceName'] = device_name
+    request_json['fieldNames'] = field_names
     response_json = __send_request__(
         '/api/home-control/get-status', request_json)
-    if (response_json is None or 'status' not in response_json):
+    if (response_json is None or 'success' not in response_json or not response_json['success']):
         return None
-    return response_json['status']
+    return response_json['target'], response_json['fieldValues']
