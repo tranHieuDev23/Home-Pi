@@ -104,7 +104,8 @@
                 ],
                 "trigger": {
                     "queryPatterns": [
-                        "Check if I turned on $SchemaOrg_Text:device_name"
+                        "Check if I turned on $SchemaOrg_Text:device_name",
+                        "Check if I turned off $SchemaOrg_Text:device_name"
                     ]
                 }
             },
