@@ -163,6 +163,7 @@ class Assistant(object):
             elif resp.dialog_state_out.microphone_mode == CLOSE_MICROPHONE:
                 continue_conversation = False
             if resp.device_action.device_request_json:
+                print(resp.device_action.device_request_json)
                 device_request = json.loads(
                     resp.device_action.device_request_json
                 )

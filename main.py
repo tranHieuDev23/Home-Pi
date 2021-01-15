@@ -2,6 +2,8 @@ import argparse
 import pvporcupine
 from assistant.pushtotalk import get_default_push_to_talk
 from utils.porcupine_helper import PorcupineInstance
+from pydub import AudioSegment
+from pydub.playback import play
 
 
 def __parse_arguments():
@@ -34,6 +36,8 @@ def __parse_arguments():
     parser.add_argument('--audio_device_index',
                         help='Index of input audio device.', type=int, default=None)
     parser.add_argument('--show_audio_devices', action='store_true')
+    parser.add_argument('--startup_file', help='Audio file that will be played when device is starting',
+                        type=str, default='resources/startup.mp3')
     parser.add_argument('--hotword_detected_file', help='Audio file that will be played when hotword is detected and the command start recording',
                         type=str, default='resources/beep.mp3')
     parser.add_argument('--no_internet_audio_file', help='Audio file that will be played when there are no internet connection',
@@ -60,6 +64,15 @@ def main():
     if args.show_audio_devices:
         PorcupineInstance.show_audio_devices()
         return
+
+    if (args.startup_file is not None):
+        try:
+            with open(args.startup_file, 'rb') as no_internet_audio:
+                response_audio = AudioSegment.from_file(
+                    no_internet_audio, format='mp3')
+                play(response_audio)
+        except Exception as e:
+            print('Problem while playing startup audio:', str(e))
 
     porcupine_instance = PorcupineInstance(
         library_path=args.library_path,
